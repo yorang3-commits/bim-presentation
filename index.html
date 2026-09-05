@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BIM 발표일 랜덤 배정기</title>
+<style>
+body{font-family:Arial,'Noto Sans KR',sans-serif;background:#f6f7fb;margin:0;color:#222}
+.wrap{max-width:900px;margin:40px auto;padding:0 16px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,0,0,.04)}
+h1{margin:0 0 8px}
+p{color:#666;line-height:1.6}
+button{padding:12px 16px;border:0;border-radius:10px;font-weight:700;cursor:pointer;margin:4px 8px 4px 0}
+.primary{background:#3557d6;color:#fff}
+.secondary{background:#eef1ff;color:#3557d6}
+.fixed{background:#eaf7ef;color:#287a55}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;border-bottom:1px solid #eee;text-align:left}
+th{background:#fafafa}
+.small{font-size:12px;color:#777}
+#log{white-space:pre-wrap;background:#111827;color:#dfe7f5;padding:14px;border-radius:12px;font-size:12px;line-height:1.6}
+.notice{background:#fff7dd;border:1px solid #f2dfa0;padding:12px 14px;border-radius:12px;color:#6f5614;font-size:13px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>BIM 발표일 랜덤 배정기</h1>
+    <p>희망일은 최대한 반영하고, 초과 신청자와 미응답자만 랜덤 배정합니다.</p>
+    <div class="small">고정: 9/10 김선욱 · 2인 발표일: 9/17, 10/8, 11/12, 12/10</div>
+  </div>
+
+  <div class="card">
+    <div class="notice">
+      ① 랜덤 배정 → ② 결과 확인 → ③ <b>이 결과 확정 HTML 만들기</b><br>
+      생성된 확정 HTML을 GitHub Pages에 올리면 누구나 항상 같은 결과를 봅니다.
+    </div>
+    <br>
+    <button class="primary" onclick="assign()">🎲 랜덤 배정</button>
+    <button class="secondary" onclick="copyResult()">📋 결과 복사</button>
+    <button class="fixed" onclick="downloadFixedHTML()">🔒 이 결과 확정 HTML 만들기</button>
+  </div>
+
+  <div class="card">
+    <h3>최종 결과</h3>
+    <div id="result">아직 배정하지 않았습니다.</div>
+  </div>
+
+  <div class="card">
+    <h3>배정 로그</h3>
+    <div id="log">랜덤 배정 버튼을 눌러주세요.</div>
+  </div>
+</div>
+
+<script>
+const dates=["9/10","9/17","9/24","10/1","10/8","10/15","10/29","11/5","11/12","11/19","11/26","12/3","12/10"];
+const caps={"9/10":1,"9/17":2,"9/24":1,"10/1":1,"10/8":2,"10/15":1,"10/29":1,"11/5":1,"11/12":2,"11/19":1,"11/26":1,"12/3":1,"12/10":2};
+
+const people=[
+{name:"김선욱",pref:"9/10",fixed:true},
+{name:"김지은",pref:"9/17"},{name:"박은서",pref:"9/17"},
+{name:"김예랑",pref:"10/1"},
+{name:"김지연",pref:"10/8"},{name:"이승원",pref:"10/8"},{name:"강은지",pref:"10/8"},
+{name:"이지호",pref:"10/29"},
+{name:"홍근형",pref:"11/5"},
+{name:"이지민",pref:"11/12"},{name:"안정혁",pref:"11/12"},
+{name:"김승환",pref:"12/3"},
+{name:"김민준",pref:""},{name:"김택우",pref:""},{name:"최웅선",pref:""},{name:"안세진",pref:""},{name:"우재욱",pref:""}
+];
+
+let latest=null;
+
+function shuffle(a){
+ a=[...a];
+ for(let i=a.length-1;i>0;i--){
+  const j=Math.floor(Math.random()*(i+1));
+  [a[i],a[j]]=[a[j],a[i]];
+ }
+ return a;
+}
+
+function assign(){
+ const result={}; dates.forEach(d=>result[d]=[]);
+ const logs=[]; const used=new Set();
+
+ people.filter(p=>p.fixed).forEach(p=>{
+   result[p.pref].push(p.name); used.add(p.name);
+   logs.push(`[고정] ${p.name} → ${p.pref}`);
+ });
+
+ for(const d of dates){
+   const cands=people.filter(p=>!used.has(p.name)&&p.pref===d);
+   const remain=caps[d]-result[d].length;
+   if(cands.length<=remain){
+     cands.forEach(p=>{
+       result[d].push(p.name); used.add(p.name);
+       logs.push(`[희망반영] ${p.name} → ${d}`);
+     });
+   }else{
+     const winners=shuffle(cands).slice(0,remain);
+     winners.forEach(p=>{
+       result[d].push(p.name); used.add(p.name);
+       logs.push(`[초과희망 랜덤당첨] ${p.name} → ${d}`);
+     });
+     cands.filter(p=>!winners.includes(p)).forEach(p=>{
+       logs.push(`[재배정 대상] ${p.name} (${d} 희망)`);
+     });
+   }
+ }
+
+ const remainPeople=shuffle(people.filter(p=>!used.has(p.name)));
+ let slots=[];
+ dates.forEach(d=>{
+   for(let i=result[d].length;i<caps[d];i++) slots.push(d);
+ });
+ slots=shuffle(slots);
+
+ remainPeople.forEach((p,i)=>{
+   result[slots[i]].push(p.name);
+   logs.push(`[랜덤] ${p.name} → ${slots[i]}${p.pref?` (원희망 ${p.pref})`:""}`);
+ });
+
+ latest=result;
+ render(result);
+ document.getElementById("log").textContent=logs.join("\n");
+}
+
+function render(result){
+ let h="<table><tr><th>날짜</th><th>발표자</th></tr>";
+ dates.forEach(d=>h+=`<tr><td><b>${d}</b></td><td>${result[d].join(" · ")}</td></tr>`);
+ h+="</table>";
+ document.getElementById("result").innerHTML=h;
+}
+
+function textResult(){
+ if(!latest)return "";
+ return "[BIM 논문 발표 일정]\n"+dates.map(d=>`${d}  ${latest[d].join(", ")}`).join("\n");
+}
+
+async function copyResult(){
+ if(!latest){alert("먼저 랜덤 배정을 해주세요.");return;}
+ await navigator.clipboard.writeText(textResult());
+ alert("복사했습니다. 카톡에 붙여넣으면 됩니다!");
+}
+
+function escapeHtml(s){
+ return s.replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+}
+
+function downloadFixedHTML(){
+ if(!latest){alert("먼저 랜덤 배정을 해주세요.");return;}
+
+ const rows=dates.map(d=>`
+   <tr>
+     <td>${escapeHtml(d)}</td>
+     <td>${escapeHtml(latest[d].join(" · "))}</td>
+   </tr>`).join("");
+
+ const fixedHtml=`<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BIM 논문 발표 일정</title>
+<style>
+body{font-family:Arial,'Noto Sans KR',sans-serif;background:#f6f7fb;margin:0;color:#222}
+.wrap{max-width:760px;margin:40px auto;padding:0 16px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:24px;box-shadow:0 10px 28px rgba(0,0,0,.05)}
+h1{margin:0 0 8px;font-size:27px}
+p{margin:0 0 20px;color:#687083;line-height:1.6}
+table{width:100%;border-collapse:collapse}
+th,td{padding:13px 12px;border-bottom:1px solid #eceef3;text-align:left}
+th{background:#f8f9fc;font-size:12px;color:#656d7b}
+td:first-child{font-weight:700;width:120px}
+.tag{display:inline-block;margin-top:18px;background:#eaf7ef;color:#287a55;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:700}
+.note{margin-top:16px;color:#999;font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>BIM 논문 발표 일정</h1>
+    <p>2026 Fall · 최종 확정 일정</p>
+    <table>
+      <thead><tr><th>날짜</th><th>발표자</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="tag">🔒 Final Schedule</div>
+    <div class="note">본 페이지는 확정된 발표 일정을 표시합니다.</div>
+  </div>
+</div>
+</body>
+</html>`;
+
+ const blob=new Blob([fixedHtml],{type:"text/html;charset=utf-8"});
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="BIM_논문발표_최종일정.html";
+ a.click();
+ URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>
